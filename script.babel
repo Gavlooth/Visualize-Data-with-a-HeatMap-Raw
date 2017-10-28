@@ -1,0 +1,96 @@
+$(document).ready(function() {
+    $.getJSON('https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/global-temperature.json',
+        function(data) {
+
+            const margin = {
+                    top: 20,
+                    right: 20,
+                    bottom: 30,
+                    left: 80
+                },
+                width = 960 - margin.left - margin.right,
+                height = 500 - margin.top - margin.bottom;
+            const mL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+                mS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+            const min = d3.min(data.monthlyVariance, (d) => d.year),
+                max = d3.max(data.monthlyVariance, (d) => d.year);
+            let sqrWidth = width / (max - min);
+            let sqrHeight = height / 12;
+            const minTemp = data.baseTemperature + d3.min(data.monthlyVariance, (d) => d.variance);
+            const maxTemp = data.baseTemperature + d3.max(data.monthlyVariance, (d) => d.variance);
+            const tempRange = maxTemp - minTemp;
+            console.log(tempRange);
+            let Colors = d => d3.interpolateRgb("#fab572", "#450214")((d.variance - minTemp) / tempRange);
+
+
+
+            const minTime = d3.min(data, d => ToSeconds(d.Time)),
+                maxTime = d3.max(data, d => ToSeconds(d.Time));
+
+            let x = d3.scaleLinear().range([0, width]).domain([min, max + 1]),
+                y = d3.scaleLinear().range([height, 0]).domain([0, 12]);
+
+
+            let chart = d3.select("#chart").append("svg")
+                .attr("class", "chart")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            let valArr = [];
+            for (let i = min + 1; i < max; i++)
+                if (!(i % 10))
+                    valArr.push(i);
+
+
+            let xAxis = d3.axisBottom(x).tickValues(valArr).tickFormat(d3.format("d")),
+                yAxis = d3.axisLeft(y).tickFormat((m) => m ? mL[m - 1] : "");
+
+
+            // x-axis
+            chart.append("g")
+                .attr("class", "x-axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+
+            // y-axis
+            chart.append("g")
+                .attr("class", "y-axis")
+                .call(yAxis);
+
+
+
+            chart.selectAll(".tile")
+                .data(data.monthlyVariance)
+                .enter().append("rect")
+                .attr("class", "tile")
+                .attr("x", function(d) {
+                    return x(d.year);
+                })
+                .attr("y", function(d) {
+                    return y(d.month);
+                })
+                .attr("width", sqrWidth)
+                .attr("height", sqrHeight)
+                .style("fill", (d) => Colors(d))
+                .on("mouseover", function() {
+                    d3.select('#tooltip').style("visibility", "visible")
+                })
+                .on("mousemove", function(d, i) {
+                    d3.select('#tooltip').style("top", (d3.event.pageY - 10) + "px").style("left", (d3.event.pageX + 10) + "px");
+                    d3.select('#Date').text(d.year + " - " + mL[d.month - 1]);
+
+                    d3.select('#Temp').text((data.baseTemperature + d.variance).toFixed(3) + " ℃");
+                    d3.select('#Variance').text(d.variance);
+
+                })
+                .on("mouseout", function() {
+                    d3.select('#tooltip').style("visibility", "hidden");
+
+                });
+
+
+        });
+})
